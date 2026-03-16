@@ -4,9 +4,15 @@ import base64
 import hashlib
 from urllib.parse import urlencode
 import requests
+from .models import LichessToken
+from datetime import datetime, timedelta
+from django.utils import timezone
+import json
 
 CLIENT_ID = "deepply.com"
+import_session = requests.Session()
 
+ms_epoch_to_datetime = lambda ms: datetime.fromtimestamp(ms / 1000, tz=timezone.get_current_timezone())
 
 def generate_oauth_url(provider_url, state, redirect_url):
     char_set = string.ascii_letters + string.digits
@@ -43,13 +49,39 @@ def get_access_token(code, code_verifier, redirect_url):
         print("Error fetching access token:", response.text)
         return None
     
-def get_email(access_token):
+def get_profile(access_token):
     headers = {
         "Authorization": f"Bearer {access_token}"
     }
-    response = requests.get("https://lichess.org/api/account/email", headers=headers)
+    response = requests.get("https://lichess.org/api/account", headers=headers)
     if response.status_code == 200:
         return response.json()
     else:
-        print("Error fetching email:", response.text)
+        print("Error fetching profile:", response.text)
         return None
+    
+def import_games(token: LichessToken):
+    headers = {
+        'Authorization': f'Bearer {token.access_token}',
+        'Accept': 'application/x-ndjson'
+    }
+    params = {
+        'since': int((datetime.now(timezone.get_current_timezone()) - timedelta(days=365)).timestamp() * 1000),
+        'max': 100, # USE LIMITING STRATEGY IN DOCS AFTER HACKCLUB
+        'rated': True,
+        'perfType': 'rapid,classical',
+        'pgnInJson': False, ## TRUE IN FUTURE IF NEEDED
+        'evals': False,
+        'clocks': False, ## ADD CLOCK TAGS FOR PAID USERS IN FUTURE
+        'tags': False,
+        'division': True,
+        'opening': True,
+    }
+    url = f'https://lichess.org/api/games/user/{token.lichessUsername}?' + urlencode(params)
+    response = requests.get(url, stream=True, headers=headers)
+    response.raise_for_status()
+    
+    for line in response.iter_lines(decode_unicode=True):
+        if line:
+            game_data = json.loads(line)
+            yield game_data
