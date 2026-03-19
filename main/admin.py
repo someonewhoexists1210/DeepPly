@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import User, Game, LichessToken
+from .models import User, Game
+from integrations.lichess.models import LichessToken
 
 # Register your models here.
 admin.site.register(Game)

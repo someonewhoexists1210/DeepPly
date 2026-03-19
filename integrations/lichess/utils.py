@@ -8,6 +8,9 @@ from .models import LichessToken
 from datetime import datetime, timedelta
 from django.utils import timezone
 import json
+import chess
+import chess.pgn
+import io
 
 CLIENT_ID = "deepply.com"
 import_session = requests.Session()
@@ -70,7 +73,7 @@ def import_games(token: LichessToken):
         'max': 100, # USE LIMITING STRATEGY IN DOCS AFTER HACKCLUB
         'rated': True,
         'perfType': 'rapid,classical',
-        'pgnInJson': False, ## TRUE IN FUTURE IF NEEDED
+        'pgnInJson': True, 
         'evals': False,
         'clocks': False, ## ADD CLOCK TAGS FOR PAID USERS IN FUTURE
         'tags': False,
@@ -84,4 +87,10 @@ def import_games(token: LichessToken):
     for line in response.iter_lines(decode_unicode=True):
         if line:
             game_data = json.loads(line)
+            pgn_io = io.StringIO(game_data['pgn'])
+            game = chess.pgn.read_game(pgn_io)
+            if not game:
+                continue
+            moves = " ".join(move.uci() for move in game.mainline_moves())
+            game_data['moves'] = moves
             yield game_data
