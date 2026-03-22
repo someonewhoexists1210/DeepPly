@@ -5,7 +5,7 @@ from main.models import User
 class LichessToken(models.Model):
     lichessUserId = models.CharField(max_length=100, blank=False)
     lichessUsername = models.CharField(max_length=200, blank=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lichess_tokens')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lichess_token')
     access_token = models.CharField(max_length=255, blank=False)
     expires_at = models.DateTimeField(blank=False)
     last_seen = models.DateTimeField(blank=True, null=True)

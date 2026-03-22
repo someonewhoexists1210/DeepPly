@@ -7,4 +7,5 @@ urlpatterns = [
     path('login', LichessLogin.as_view(), name='login'),
     path('callback', LichessCallback.as_view(), name='callback'),
     path('oauth_cancelled', OAuthCancel.as_view(), name='cancel'),
+    path('url', LichessUrl.as_view(), name='url')
 ]

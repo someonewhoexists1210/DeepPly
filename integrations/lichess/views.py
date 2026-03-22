@@ -115,11 +115,11 @@ class LichessUrl(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        url = request.body.get('url')
+        url = request.data.get('url')
         if re.match(r'https://lichess\.org/[a-zA-Z0-9]{8,12}', url) is None: # Should be of format https://lichess.org/{gameId} where gameId is 12 characters or 8
             return Response({'error': 'Invalid URL format'}, status=400)
         lichess_id = url.split('/')[-1][:8]
-        color = request.body.get('color')
+        color = request.data.get('color')
         token = LichessToken.objects.filter(user=request.user).first()
         if Game.objects.filter(lichess_id=lichess_id, user=request.user).exists():
             return Response({'error': 'Game already imported'}, status=400)
@@ -129,6 +129,7 @@ class LichessUrl(APIView):
             if not game:
                 return Response({'error': 'Failed to import game'}, status=400)
             
+            print(game)
             Game.objects.create(
                     lichess_id=game['id'],
                     user=request.user,
