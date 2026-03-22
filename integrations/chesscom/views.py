@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView, Response
 from .utils import import_games, s_epoch_to_datetime
 from main.models import Game
+from rest_framework.permissions import IsAuthenticated
 
 
 GameResultMap = {
@@ -13,6 +14,8 @@ GameResultMap = {
 
 # Create your views here.
 class ChessComImport(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         username = request.query_params.get('username')
         months = int(request.query_params.get('months', 1))

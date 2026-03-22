@@ -7,7 +7,8 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', Register.as_view(), name='register'),
     path('auth', CheckAuth.as_view(), name='check_auth'),
-    path('upload_pgn/', UploadPGN.as_view(), name='upload_pgn'),
-    path('lichess/', include('integrations.lichess.urls')),
-    path('chesscom/', include('integrations.chesscom.urls'))
+    path('import/pgn', UploadPGN.as_view(), name='upload_pgn'),
+    path('import/lichess/', include('integrations.lichess.urls')),
+    path('import/chesscom/', include('integrations.chesscom.urls')),
+    path('analysis/', include('analysis.urls')),
 ]

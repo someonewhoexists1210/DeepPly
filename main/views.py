@@ -1,6 +1,8 @@
 from rest_framework.views import APIView, Response
 from rest_framework.permissions import IsAuthenticated
-from .models import User
+from .models import User, Game
+from .utils import parse_pgn
+
 
 # Create your views here.
 class UploadPGN(APIView):
@@ -13,20 +15,14 @@ class UploadPGN(APIView):
         if not pgn_file:
             return Response({"error": "No PGN file uploaded."}, status=400)
         
-        # PGN proccessing
-        # Parsing
-        # pgn_text = pgn_file.read().decode('utf-8')
-        # moves = regex.findall(r'\d+\.\s*([a-hKRQNB][^\s]+)(?:\s+([a-hKRQNB][^\s]+))?', pgn_text)
-        # if len(moves) == 0:
-        #     return Response({"error": "Invalid PGN file."}, status=400)
+        pgn_text = pgn_file.read().decode('utf-8')
+        data = parse_pgn(pgn_text, username=user.username, color=color)
+        if 'error' in data:
+            return Response(data, status=400)
         
-        # ply_count = 2 * (len(moves) - 1) + len(moves[-1])
-        # if request.data.get('datetime'):
-        #     date = request.data.get('datetime')
-        # else:
-        #     date_reg = regex.search(r'\[Date\s+"(\d{4}\.\d{2}\.\d{2})"\]', pgn_text)
-        #     time_reg = regex.search(r'\[EndTime\s+"(\d{2}:\d{2}:\d{2})"\]', pgn_text)
-        #     date = date_reg.group(1) if date_reg else None
+        for game_data in data:
+            Game.objects.create(user=user,**game_data) # type:ignore
+        return Response({'message': 'Game uploaded successfully'}, status=200)
 
 class Register(APIView):
     def post(self, request):

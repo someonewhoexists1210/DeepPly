@@ -63,7 +63,17 @@ def get_profile(access_token):
         print("Error fetching profile:", response.text)
         return None
     
-def import_games(token: LichessToken):
+def parse_game_json(game_data: dict):
+    pgn_io = io.StringIO(game_data['pgn'])
+    game = chess.pgn.read_game(pgn_io)
+    if not game:
+        return None
+    moves = " ".join(move.uci() for move in game.mainline_moves())
+    game_data['moves'] = moves
+    return game_data
+
+
+def import_all_games(token: LichessToken):
     headers = {
         'Authorization': f'Bearer {token.access_token}',
         'Accept': 'application/x-ndjson'
@@ -87,10 +97,29 @@ def import_games(token: LichessToken):
     for line in response.iter_lines(decode_unicode=True):
         if line:
             game_data = json.loads(line)
-            pgn_io = io.StringIO(game_data['pgn'])
-            game = chess.pgn.read_game(pgn_io)
-            if not game:
-                continue
-            moves = " ".join(move.uci() for move in game.mainline_moves())
-            game_data['moves'] = moves
-            yield game_data
+            parsed = parse_game_json(game_data)
+            if parsed:
+                yield parsed
+            
+def import_one_game(game_id: str, token):
+
+    headers = {
+        'Accept': 'application/json'
+    }
+    if isinstance(token, LichessToken):
+        headers['Authorization'] = f'Bearer {token.access_token}'
+
+    params = {
+        'pgnInJson': True, 
+        'evals': False,
+        'clocks': False, ## ADD CLOCK TAGS FOR PAID USERS IN FUTURE
+        'tags': False,
+        'division': True,
+        'opening': True,
+    }
+    url = f'https://lichess.org/game/export/{game_id}?' + urlencode(params)
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
+    return parse_game_json(response.json())
+    

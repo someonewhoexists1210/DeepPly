@@ -16,7 +16,6 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -49,6 +48,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'main',
+    'analysis',
     'integrations.lichess',
     'integrations.chesscom',
 ]
@@ -71,6 +71,13 @@ REST_FRAMEWORK = {
 }
 
 ROOT_URLCONF = 'DeepPly.urls'
+
+CELERY_BROKER_URL = os.getenv('REDIS_URL')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL')
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+
 
 TEMPLATES = [
     {
