@@ -1,0 +1,13 @@
+{
+    "v1.0": [
+        "piece_coordination",
+        "king_safety",
+        "space",
+        "activity",
+        "open_files_squares_diagonals",
+        "centre_control",
+        "superior_minor_piece",
+        "material",
+        "pawn_structure"
+    ]
+}
