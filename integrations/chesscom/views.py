@@ -40,7 +40,7 @@ class ChessComImport(APIView):
                     chesscom_id=game['url'].split('/')[-1],
                     user=request.user,
                     plies=game['plies'],
-                    color=game['black']['username'] == username,
+                    color=game['white']['username'] == username,
                     moves=game['moves'],
                     result=res,
                     date=s_epoch_to_datetime(game['end_time']),

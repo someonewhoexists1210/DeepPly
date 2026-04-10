@@ -28,7 +28,7 @@ class LichessImport(APIView):
         try:
             for game in import_all_games(LToken):
                 ### MAKE THIS A CELERY TASK IN FUTURE
-                color = game['players']['black']['user']['name'] == LToken.lichessUsername
+                color = game['players']['white']['user']['name'] == LToken.lichessUsername
                 Game.objects.create(
                     lichess_id=game['id'],
                     user=request.user,
@@ -37,7 +37,7 @@ class LichessImport(APIView):
                     moves=game['moves'],
                     middle_game_start=game['division'].get('middle'),
                     end_game_start=game['division'].get('end'),
-                    result = calculate_result((0.0 if game['winner'] == 'black' else 1.0) if game.get('winner') else 0.5, color),
+                    result = calculate_result((1.0 if game['winner'] == 'white' else 0.0) if game.get('winner') else 0.5, color),
                     date=ms_epoch_to_datetime(game['createdAt']),
                     time_control=f'{game["clock"]["initial"]}/{game["clock"]["increment"]}'
                 )
@@ -134,11 +134,11 @@ class LichessUrl(APIView):
                     lichess_id=game['id'],
                     user=request.user,
                     plies=len(game['moves'].split(' ')),
-                    color=color == 'black',
+                    color=color == 'white',
                     moves=game['moves'],
                     middle_game_start=game['division'].get('middle'),
                     end_game_start=game['division'].get('end'),
-                    result=calculate_result((1.0 if game['winner'] == 'white' else 0.0) if game.get('winner') else 0.5, color == 'black'),
+                    result=calculate_result((1.0 if game['winner'] == 'white' else 0.0) if game.get('winner') else 0.5, color == 'white'),
                     date=ms_epoch_to_datetime(game['createdAt']),
                     time_control=f'{game["clock"]["initial"]}/{game["clock"]["increment"]}'
             )

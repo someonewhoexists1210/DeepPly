@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import numpy as np
 
 
 load_dotenv()
@@ -147,3 +148,10 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+CLASS_MAPPING = {
+    'float32': np.float32,
+    'float64': np.float64,
+    'int32': np.int32,
+    'int64': np.int64,
+}
