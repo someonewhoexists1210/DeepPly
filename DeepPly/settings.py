@@ -149,6 +149,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 
 STATIC_URL = 'static/'
 
+VECTOR_VERSION = 'v1.0'
 CLASS_MAPPING = {
     'float32': np.float32,
     'float64': np.float64,

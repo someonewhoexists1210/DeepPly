@@ -2,8 +2,14 @@ from dataclasses import dataclass, field
 from typing import Optional, Any
 import chess
 import numpy as np
+import json
+from django.conf import settings
 
-PositionVector = np.ndarray[tuple[int], np.dtype[np.float64]]
+all_vector_formats: dict[str, dict] = json.load(open('analysis/vector_format.json'))
+VECTOR_FORMAT = all_vector_formats[settings.VECTOR_VERSION]
+
+dt = settings.CLASS_MAPPING[VECTOR_FORMAT['format']['dtype']]
+PositionVector = np.ndarray[tuple[int], np.dtype[dt]]
 
 @dataclass
 class Evaluation:

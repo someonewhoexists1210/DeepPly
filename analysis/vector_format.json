@@ -3,40 +3,32 @@
         "description": "Initial version. One vector per side",
         "format": {
             "dtype": "float32",
-            "shape": [28],
             "features": [
-                "pawn_count",1
-                "knight_count",1
-                "bishop_count",1
-                "rook_count",1
-                "queen_count",1
-                "total_material",1
-
-                "isolated_pawns",1
-                "doubled_pawns",1
-                "backward_pawns",1
-                "passed_pawns",1
-                "pawn_islands",1
-                "central_pawns",1
-
-                "king_attackers", 1
-                "king_defenders",1
-                "pawn_shield",1
-
-                "development",
+                "pawn_count",
+                "knight_count",
+                "bishop_count",
+                "rook_count",
+                "queen_count",
+                "total_material",
+                "isolated_pawns",
+                "doubled_pawns",
+                "backward_pawns",
+                "passed_pawns",
+                "pawn_islands",
+                "central_pawns",
+                "king_attackers", 
+                "king_defenders",
+                "pawn_shield",
+                "location",
                 "kingside_control",
                 "queenside_control",
                 "center_control",
-
+                "pressure",
                 "king_pressure",
-                "attacked_enemy_pieces",1
-
                 "kingside_pawn_push",
                 "queenside_pawn_push",
                 "kingside_pawn_count",
-                "queenside_pawn_count",
-                
-                "space"
+                "queenside_pawn_count"
             ],
             "per_side": true
         }

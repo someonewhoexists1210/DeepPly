@@ -5,11 +5,12 @@ import json
 import chess
 from typing import Any
 from classes import *
-from scorers import *
+from scorers import generate_position_vector
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.special import softmax
 import numpy as np
 import numpy.typing as npt
+from scorers import generate_position_vector
 
 
 MUSCLE_IP = os.getenv('MUSCLE_IP')
@@ -166,41 +167,27 @@ def flag_critical(evals: list[Position], color=1, threshold=50, mate_threshold=5
     return critical_moments
             
 def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[str, Any]:
-    '''
-    Engine Moves:
-    1. Classify move concept
-    2. Compute vector repr
-    3. Cluster based on vector
-    4. Collect concepts per cluster
-
-    User Move:
-    1. Classify move concept
-    2. Compute vector repr
-    3. Compare to engine clusters, match by vector or move concept (tbd later)
-
-    Compute V_Gap from selected cluster
-    Extract top features from V_Gap
-
-    if intent same, focus on features of V_gap
-    if intent different, focus on intent mismatch and secondarily features of V_gap
-    '''
-
     if not ev.eval or not ev.move:
         raise Exception('No evaluation or move data available for positional analysis')
     log_data = {}
     board = chess.Board(ev.fen)
     board.push_uci(ev.move)
-    user_vector = generate_position_vector(board.fen())
+    user_vector_full = generate_position_vector(board, not board.turn)
+    user_vector = user_vector_full[0]
     board.pop()
 
     engine_vectors: list[PositionVector] = []
+    engine_vectors_full: list[tuple[PositionVector, PositionVector | None]] = []
     for pv in ev.eval:
         board.push_uci(pv.line.split()[0])
-        engine_vector = generate_position_vector(board.fen())
-        board.pop()
+        engine_vector_full = generate_position_vector(board, not board.turn)
+        engine_vector = engine_vector_full[0]
+        engine_vectors_full.append(engine_vector_full)
         engine_vectors.append(engine_vector)
 
-    log_data['vectors'] = [user_vector] + engine_vectors
+    log_data['vectors_full'] = [user_vector_full] + engine_vectors_full
+    log_data['user_vector'] = user_vector
+    log_data['engine_vectors'] = engine_vectors
     clusters: list[list[int]] = []
     for v_ind, vect in enumerate(engine_vectors):
         added = False
@@ -323,7 +310,3 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
     log_data['strategic_mistake'] = True
     log_data['result'] = result
     return log_data
-
-def generate_position_vector(fen: str, color=1) -> PositionVector:
-    pass # RUN SCORERS
-    return np.random.rand(300)
