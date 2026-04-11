@@ -6,9 +6,9 @@ import json
 from django.conf import settings
 
 all_vector_formats: dict[str, dict] = json.load(open('analysis/vector_format.json'))
-VECTOR_FORMAT = all_vector_formats[settings.VECTOR_VERSION]
+VECTOR_FORMAT = all_vector_formats["v1.0"]
 
-dt = settings.CLASS_MAPPING[VECTOR_FORMAT['format']['dtype']]
+dt = np.float32
 PositionVector = np.ndarray[tuple[int], np.dtype[dt]]
 
 @dataclass

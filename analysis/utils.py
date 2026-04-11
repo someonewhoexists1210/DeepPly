@@ -12,12 +12,12 @@ import numpy as np
 import numpy.typing as npt
 from scorers import generate_position_vector
 
-
 MUSCLE_IP = os.getenv('MUSCLE_IP')
 if not MUSCLE_IP:
     raise Exception("MUSCLE_IP not set in environment variables")
 
-WEIGHTS = np.array([])
+VECTOR_LENGTH = len(VECTOR_FORMAT['format']['features'])
+WEIGHTS = np.ones(VECTOR_LENGTH)
 PLAN_TEMP = 1.0
 
 
@@ -310,3 +310,9 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
     log_data['strategic_mistake'] = True
     log_data['result'] = result
     return log_data
+
+current_eval = Position(
+    fen='r3kb1r/pp3p1p/1qn3p1/3pPpN1/3P4/1P1QB2P/P4PP1/R3K2R b KQkq - 1 15',
+    index=14,
+    move=""
+)

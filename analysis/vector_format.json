@@ -20,15 +20,21 @@
                 "king_defenders",
                 "pawn_shield",
                 "location",
+                "center_control",
                 "kingside_control",
                 "queenside_control",
-                "center_control",
                 "pressure",
                 "king_pressure",
                 "kingside_pawn_push",
                 "queenside_pawn_push",
                 "kingside_pawn_count",
-                "queenside_pawn_count"
+                "queenside_pawn_count",
+                "open_files",
+                "semi_open",
+                "heavy_pieces_open",
+                "heavy_pieces_semi",
+                "open_diag", 
+                "enemy_territory"
             ],
             "per_side": true
         }
