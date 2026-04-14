@@ -2,7 +2,7 @@
     "v1.0": {
         "description": "Initial version. One vector per side",
         "format": {
-            "dtype": "float32",
+            "dtype": "float64",
             "features": [
                 "pawn_count",
                 "knight_count",

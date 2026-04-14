@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Celery Debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "celery",
+            "console": "integratedTerminal",
+            "args": [
+                "-A", "DeepPly",
+                "worker",
+                "--loglevel=info",
+                "--pool=solo"
+            ],
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "DeepPly.settings"
+            }
+        }
+    ]
+}

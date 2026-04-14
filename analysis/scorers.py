@@ -1,7 +1,7 @@
 import chess
 import numpy as np
 import numpy.typing as npt
-from classes import PositionVector, VECTOR_FORMAT, dt
+from .classes import PositionVector, VECTOR_FORMAT, dt
 
 PIECE_VALUES = {
     chess.PAWN: 1,
@@ -363,16 +363,4 @@ def generate_position_vector(board: chess.Board, color: chess.Color) -> tuple[Po
 
         return (white_vec, black_vec) if color == chess.WHITE else (black_vec, white_vec)
     return evaluate_side(board, color), None
-
-fen = 'r3kb1r/pp3p1p/1qn3p1/3pPpN1/3P4/1P1QB2P/P4PP1/R3K2R b KQkq - 1 15'
-print(fen)
-vects = generate_position_vector(chess.Board(fen), chess.WHITE)
-if vects[1] is  None:
-    for feature, value1 in zip(VECTOR_FORMAT['format']['features'], vects[0]):
-        print(f"{feature}: {value1}")
-    print('\n\n')
-else:
-    for feature, value1, value2 in zip(VECTOR_FORMAT['format']['features'], vects[0], vects[1]):
-        print(f"{feature}: {value1}, {value2}")
-    print('\n\n')
         

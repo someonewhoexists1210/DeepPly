@@ -1,16 +1,16 @@
 import os
 import requests
 import time
-import json
 import chess
 from typing import Any
-from classes import *
-from scorers import generate_position_vector
+from .classes import *
+from .scorers import generate_position_vector
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.special import softmax
 import numpy as np
 import numpy.typing as npt
-from scorers import generate_position_vector
+from .  tacticals import tactical_detection
+from pydantic import TypeAdapter
 
 MUSCLE_IP = os.getenv('MUSCLE_IP')
 if not MUSCLE_IP:
@@ -21,7 +21,7 @@ WEIGHTS = np.ones(VECTOR_LENGTH)
 PLAN_TEMP = 1.0
 
 
-def detect_repitition(game: list[Position]) -> tuple[bool, list[int]]:
+def detect_repetition(game: list[Position]) -> tuple[bool, list[int]]:
     all_positions: dict[str, list[int]] = {}
     for pos in game:
         pos.fen = ' '.join(pos.fen.split()[:4])
@@ -44,17 +44,18 @@ def detect_50move_rule(game: list[Position]) -> tuple[bool, int]:
     return (False, -1)
 
 def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen': str, 'eval': {'pv': 'e2e4 e7e5', 'score': 20}}]
-    response = requests.post(f'http://{MUSCLE_IP}/evaluate', json={'game_data': positions})
+    serialized = TypeAdapter(list[Position]).dump_python(positions)
+    response = requests.post(f'http://{MUSCLE_IP}/evaluate', json=serialized)
     if response.status_code != 200:
         raise Exception(f'MUSCLE evaluation failed with status code {response.status_code}, response: {response.text}')
     
     data = response.json()
     job_id: str = data.get('job_id')
-    evals: list[Position] = data.get('cached', [])
-    remaining: int = data.get('remaining', 0)
+    evals: list[Position] = TypeAdapter(list[Position]).validate_python(data.get('cached', []))
+    remaining: list = data.get('remaining', [])
 
     start_time = time.time()
-    while True:
+    while True and len(remaining) > 0:
         current_time = time.time()
         if current_time - start_time > 30: # timeout after 30 seconds
             raise Exception('MUSCLE evaluation timed out after 30 seconds')
@@ -74,7 +75,7 @@ def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen'
             time.sleep(0.5)
         elif 'complete' in status.lower():
             results = st_data.get('results', [])
-            evals.extend([json.loads(pos) for pos in results])
+            evals.extend(TypeAdapter(list[Position]).validate_python(results))
             if len(results) != remaining:
                 raise Exception(f'MUSCLE returned complete but results count {len(results)} does not match expected {remaining}')
             break
@@ -84,57 +85,97 @@ def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen'
     evals = sorted(evals, key=lambda x: x.index)
     return evals
 
-def analysis_pipeline(evals: list[Position], color=1):
+def analysis_pipeline(positions: list[Position], color=1) -> list[FullPositionResult]: # yields either FullPositionResult for each position or a list of critical moment indices at the start
     log_data = {}
-    for ev in evals:
-        if not ev.eval:
+    for position in positions:
+        if len(position.variations) == 0:
             raise Exception('Evaluation data missing for some positions')
         
-    cms = [ev for ev in evals if ev.index in flag_critical(evals, color)]
-    criticals = [Position(cm.fen, cm.index, cm.move) for cm in cms]
-    yield criticals
-
-    for i in range(len(evals)-1):
+    cms = [position for position in positions if position.index in flag_critical(positions, color)]
+    criticals = [position.index for position in cms]
+    
+    results: list[FullPositionResult] = []
+    for i in range(len(positions)-1):
         if i % 2 != color:
             continue
         
         pos_log: dict[str, Any] = {}
-        pos_log['index'] = evals[i].index
-        pos_log['fen'] = evals[i].fen
-        pos_log['move'] = evals[i].move
-        pos_log['strategic_analysis'] = positional_analysis(evals[i], evals[i+1].eval[0].evaluation)  # pyright: ignore[reportOptionalSubscript]
-        pos_log['tactical_analysis'] = tactical_analysis() # TODO
+        pos_log['strategic_analysis'] = positional_analysis(positions[i], positions[i+1].variations[0].evaluation)
+        pos_log['tactical_analysis'] = tactical_analysis(positions[i].fen, positions[i].variations[0])
 
-        if evals[i].index in log_data['critical_moments']:
+        if positions[i].index in criticals:
             pos_log['critical'] = True
         
-        if pos_log['tactical_analysis']['tactical_mistake']:
+        if pos_log['tactical_analysis']:
             pos_log['overall_mistake'] = True
             pos_log['mistake_type'] = 'tactical'
-        elif pos_log['strategic_analysis']['strategic_mistake']:
+        elif pos_log['strategic_analysis'].strategic_mistake:
             pos_log['overall_mistake'] = True
             pos_log['mistake_type'] = 'strategic'
 
-        yield pos_log
+        pos_obj = FullPositionResult.model_validate(pos_log)
+        results.append(pos_obj)
 
-def tactical_analysis() -> dict:
-    return {}
+    return results
 
-def flag_critical(evals: list[Position], color=1, threshold=50, mate_threshold=5) -> list[int]: # returns list of indices of critical moments
-    critical_moments = []
+def tactical_analysis(fen: str, engine_pv: PV) -> TacticalPipelineResult | None:
+    board = chess.Board(fen)
+    if not board.is_valid():
+        raise Exception('Invalid FEN provided for tactical analysis')
+    
+    moves = engine_pv.line.split()
+    positions: list[str] = []
+    tactics: dict[str, list[float]] = {}
+    for move in moves:
+        board.push_uci(move)
+        positions.append(board.fen())
+        tactical_result = tactical_detection(board.fen())
+        for tactic in tactical_result:
+            if tactic.label in tactics:
+                tactics[tactic.label].append(tactic.confidence)
+            else:
+                tactics[tactic.label] = [tactic.confidence]
+
+    peaked_tactics = {}
+    for tactic, confidences in tactics.items():
+        peak_confidence = max(confidences)
+        peak_confidence_idx = np.argmax(confidences)
+        if peak_confidence > 0.75:
+            peaked_tactics[tactic] = (peak_confidence, positions[peak_confidence_idx])
+
+    max_tactic = None
+    max_confidence = -1
+    for tactic, (confidence, pos) in peaked_tactics.items():
+        if confidence > max_confidence:
+            max_confidence = confidence
+            max_tactic = (tactic, pos, confidence)
+
+    
+    if max_tactic:
+        return TacticalPipelineResult(
+            tactic=max_tactic[0],
+            position=max_tactic[1],
+            confidence=max_tactic[2],
+            engine_line=engine_pv.line.split()
+        )
+    return None
+
+def flag_critical(positions: list[Position], color=1, threshold=50, mate_threshold=5) -> list[int]: # returns list of indices of critical moments
+    critical_moments: list[int] = []
     index = 0
-    for eval in evals:
-        if index == len(evals)-1:
+    for position in positions:
+        if index == len(positions)-1:
             break
 
-        if index % 2 != color:
+        if index % 2 == color:
+            index += 1
             continue
 
-        if len(eval.eval) == 0:
+        if len(position.variations) == 0:
             raise Exception('No evaluation data available for critical moment analysis')
         
-        current_eval = eval.eval[0]
-        next_eval: PV = evals[index + 1].eval[0]
+        current_eval: PV = position.variations[0]
+        next_eval: PV = positions[index + 1].variations[0]
 
         if current_eval.evaluation.mate is not None:
             if next_eval.evaluation.mate is not None:
@@ -147,11 +188,11 @@ def flag_critical(evals: list[Position], color=1, threshold=50, mate_threshold=5
                 elif mate_delta > mate_threshold and current_eval.evaluation.mate < 10: # Missed mate or significant increase in mate distance
                     critical_moments.append(index)
 
-            elif next_eval.evaluation.cp < 500: # pyright: ignore[reportOptionalOperand] # mate missed into a not as winning position, could be losing now
+            elif next_eval.evaluation.cp is not None and next_eval.evaluation.cp < 500: # mate missed into a not as winning position, could be losing now
                 critical_moments.append(index)
         
         elif next_eval.evaluation.mate is not None:
-            if current_eval.evaluation.cp > 0 and next_eval.evaluation.mate < 0: # pyright: ignore[reportOptionalOperand] # missed a winning position into a losing one
+            if current_eval.evaluation.cp is not None and current_eval.evaluation.cp > 0 and next_eval.evaluation.mate < 0: # missed a winning position into a losing one
                 critical_moments.append(index)
                 continue
 
@@ -166,24 +207,25 @@ def flag_critical(evals: list[Position], color=1, threshold=50, mate_threshold=5
 
     return critical_moments
             
-def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[str, Any]:
-    if not ev.eval or not ev.move:
+def positional_analysis(position: Position, next_position_eval: Evaluation) -> PositionalPipelineResult:
+    if len(position.variations) == 0 or position.move.strip() == '':
         raise Exception('No evaluation or move data available for positional analysis')
     log_data = {}
-    board = chess.Board(ev.fen)
-    board.push_uci(ev.move)
+    board = chess.Board(position.fen)
+    board.push_uci(position.move)
     user_vector_full = generate_position_vector(board, not board.turn)
     user_vector = user_vector_full[0]
     board.pop()
 
     engine_vectors: list[PositionVector] = []
     engine_vectors_full: list[tuple[PositionVector, PositionVector | None]] = []
-    for pv in ev.eval:
-        board.push_uci(pv.line.split()[0])
+    for variation in position.variations:
+        board.push_uci(variation.line.split()[0])
         engine_vector_full = generate_position_vector(board, not board.turn)
         engine_vector = engine_vector_full[0]
         engine_vectors_full.append(engine_vector_full)
         engine_vectors.append(engine_vector)
+        board.pop()
 
     log_data['vectors_full'] = [user_vector_full] + engine_vectors_full
     log_data['user_vector'] = user_vector
@@ -206,16 +248,16 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
     cluster_data: list[Cluster] = []
     for ind, cluster in enumerate(clusters):
         representative = engine_vectors[cluster[0]]
-        representative_eval = ev.eval[cluster[0]].evaluation
+        representative_eval = position.variations[cluster[0]].evaluation
         cluster_data.append(Cluster(V=representative, E=representative_eval, idx=ind))
 
     cluster_data = sorted(cluster_data, key=lambda x: x.E.score, reverse=True)
     log_data['cluster_data'] = cluster_data
 
-    plan_distances = np.array([np.linalg.norm(WEIGHTS * (user_vector - cluster.V)) for cluster in cluster_data])
+    plan_distances: npt.NDArray = np.array([np.linalg.norm(WEIGHTS * (user_vector - cluster.V)) for cluster in cluster_data])
     log_data['plan_distances'] = plan_distances
 
-    plan_probabilities: npt.NDArray[np.float64]  = softmax(-plan_distances / PLAN_TEMP)
+    plan_probabilities: npt.NDArray= softmax(-plan_distances / PLAN_TEMP)
     log_data['plan_probabilities'] = plan_probabilities
 
     user_plan = cluster_data[np.argmax(plan_probabilities)]
@@ -226,9 +268,9 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
 
     plan_match = 1
     if user_plan_confidence < 1 / len(plan_probabilities) + 0.1: # if all plans are very close in distance, no clear plan followed
-        plan_match = 0
+        plan_match = -1
     elif user_plan_confidence < 1 / len(plan_probabilities) + 0.25:
-        plan_match = 0.5
+        plan_match = 0
 
     log_data['plan_match'] = plan_match
 
@@ -236,27 +278,29 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
 
     domination = False
     current_eval = cluster_data[0].E
-    next_eval = cluster_data[1].E
+    if (len(cluster_data) > 1):
+        next_eval = cluster_data[1].E
+    
+        curr_mate = current_eval.mate
+        next_mate = next_eval.mate
 
-    curr_mate = current_eval.mate
-    next_mate = next_eval.mate
+        curr_is_mate = curr_mate is not None
+        next_is_mate = next_mate is not None
 
-    curr_is_mate = curr_mate is not None
-    next_is_mate = next_mate is not None
-
-    if curr_is_mate and next_is_mate:
-        if curr_mate < 6 and abs(eval_diff[0]) > 3:
-            domination = True
-    elif curr_is_mate:
-        if next_eval.cp < 500: # type: ignore[reportOptionalOperand]
-            domination = True
-    elif next_eval.mate is not None and next_eval.mate < 0:
-        if current_eval.cp > -500: # type: ignore[reportOptionalOperand]
-            domination = True
+        if curr_is_mate and next_is_mate:
+            if curr_mate < 6 and abs(eval_diff[0]) > 3:
+                domination = True
+        elif curr_is_mate:
+            if next_eval.cp is not None and next_eval.cp < 500:
+                domination = True
+        elif next_eval.mate is not None and next_eval.mate < 0:
+            if current_eval.cp is not None and current_eval.cp > -500:
+                domination = True
+        else:
+            if abs(eval_diff[0]) > 50:
+                domination = True
     else:
-        if abs(eval_diff[0]) > 50:
-            domination = True
-
+        domination = True
     log_data['domination'] = domination
 
     if domination:
@@ -267,7 +311,8 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
         E_ref = user_plan.E
 
     log_data['V_ref'] = V_ref
-    V_gap = WEIGHTS * (V_ref - user_vector)
+    log_data['E_ref'] = E_ref
+    V_gap: DiffVector = WEIGHTS * (V_ref - user_vector)
     log_data['V_gap'] = V_gap
     
     E_gap = E_ref - next_position_eval
@@ -285,34 +330,36 @@ def positional_analysis(ev: Position, next_position_eval: Evaluation) -> dict[st
             result = "No clear plan detected, didn't match any engine plans clearly"
         log_data['strategic_mistake'] = True
         log_data['result'] = result
-        return log_data
+        res = PositionalPipelineResult.model_validate(log_data)
+        return res
     
     if is_acceptable_move:
         result = f'User move is strong, follows cluster {user_plan.idx} with representative vector {user_plan.V} closely with similar evaluation to the representative move, no clear mistakes'
         log_data['strategic_mistake'] = False
         log_data['result'] = result
-        return log_data
+        res = PositionalPipelineResult.model_validate(log_data)
+        return res
     
     if domination:
         if user_plan.idx != cluster_data[0].idx:
             result = f"User is not following the main plan of the position"
             log_data['strategic_mistake'] = True
             log_data['result'] = result
-            return log_data
+            res = PositionalPipelineResult.model_validate(log_data)
+            return res
         
         result = f'User follows main plan of position, but there is a strategic gap shown by vector {V_gap}'
         log_data['strategic_mistake'] = True
         log_data['result'] = result
-        return log_data
+        res = PositionalPipelineResult.model_validate(log_data)
+        return res
 
 
     result = f"User follows a clear plan with confidence {user_plan_confidence:.2f}, but there is a strategic gap shown by vector {V_gap} and evaluation gap of {E_gap} between user move and most similar engine plan move"
     log_data['strategic_mistake'] = True
     log_data['result'] = result
-    return log_data
 
-current_eval = Position(
-    fen='r3kb1r/pp3p1p/1qn3p1/3pPpN1/3P4/1P1QB2P/P4PP1/R3K2R b KQkq - 1 15',
-    index=14,
-    move=""
-)
+
+    res = PositionalPipelineResult.model_validate(log_data)
+    return res
+                                

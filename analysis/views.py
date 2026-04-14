@@ -15,6 +15,7 @@ class AnalysisView(APIView):
 
     def get(self, request):
         game_id = request.query_params.get('game_id')
+        print(f"Received analysis request for game_id: {game_id} by user: {request.user.username}")
         game = Game.objects.filter(id=game_id, user=request.user).first()
         if not game:
             return Response({'error': 'Game not found'}, status=404)
@@ -36,6 +37,7 @@ class AnalysisStatusView(APIView):
             return Response({'error': 'Invalid task ID'}, status=404)
         
         result = AsyncResult(task_id)
+        print(result)
     
         if result.state == 'PENDING':
             return Response({'status': "PENDING"}, status=200)

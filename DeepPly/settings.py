@@ -14,11 +14,14 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import numpy as np
+import ssl
 
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+GAME_RESULT_DIR = BASE_DIR / 'game_results'
+GAME_RESULT_DIR.mkdir(exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -73,12 +76,15 @@ REST_FRAMEWORK = {
 
 ROOT_URLCONF = 'DeepPly.urls'
 
-CELERY_BROKER_URL = os.getenv('REDIS_URL')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL')
+REDIS_URL = os.getenv('REDIS_URL')
+if REDIS_URL is None:
+    raise Exception("REDIS_URL not set in environment variables")
+    
+CELERY_BROKER_URL = REDIS_URL + "?ssl_cert_reqs=CERT_REQUIRED"
+CELERY_RESULT_BACKEND = REDIS_URL + "?ssl_cert_reqs=CERT_REQUIRED"
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
-
 
 TEMPLATES = [
     {
