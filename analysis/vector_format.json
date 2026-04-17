@@ -36,7 +36,44 @@
                 "open_diag", 
                 "enemy_territory"
             ],
-            "per_side": true
+            "per_side": true,
+            "normalization": {
+                "method": "minmax",
+                "clip": true,
+                "feature_ranges": {
+                    "pawn_count": [0, 8],
+                    "knight_count": [0, 2],
+                    "bishop_count": [0, 2],
+                    "rook_count": [0, 2],
+                    "queen_count": [0, 1],
+                    "total_material": [0, 48],
+                    "isolated_pawns": [0, 8],
+                    "doubled_pawns": [0, 8],
+                    "backward_pawns": [0, 8],
+                    "passed_pawns": [0, 8],
+                    "pawn_islands": [0, 4],
+                    "central_pawns": [0, 8],
+                    "king_attackers": [0, 15],
+                    "king_defenders": [0, 15],
+                    "pawn_shield": [0, 8],
+                    "location": [0, 1],
+                    "center_control": [0, 64],
+                    "kingside_control": [0, 128],
+                    "queenside_control": [0, 128],
+                    "pressure": [0, 15],
+                    "king_pressure": [0, 180],
+                    "kingside_pawn_push": [0, 56],
+                    "queenside_pawn_push": [0, 56],
+                    "kingside_pawn_count": [0, 8],
+                    "queenside_pawn_count": [0, 8],
+                    "open_files": [0, 8],
+                    "semi_open": [0, 8],
+                    "heavy_pieces_open": [0, 11],
+                    "heavy_pieces_semi": [0, 11],
+                    "open_diag": [0, 120],
+                    "enemy_territory": [0, 80]
+                }
+            }
         }
     }
 }

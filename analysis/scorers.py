@@ -14,6 +14,33 @@ PIECE_VALUES = {
 
 CENTER_SQUARES = [chess.D4, chess.E4, chess.D5, chess.E5]
 
+def normalize_vector(vec: npt.NDArray[dt]) -> npt.NDArray[dt]:
+    normalization = VECTOR_FORMAT['format'].get('normalization')
+    if normalization is None:
+        return vec
+
+    if normalization.get('method') != 'minmax':
+        raise ValueError(f"Unsupported normalization method: {normalization.get('method')}")
+
+    feature_ranges = normalization.get('feature_ranges', {})
+    clip = bool(normalization.get('clip', True))
+    normalized = vec.astype(dt, copy=True)
+
+    for idx, feature in enumerate(VECTOR_FORMAT['format']['features']):
+        if feature not in feature_ranges:
+            raise ValueError(f"Missing normalization range for feature '{feature}'")
+
+        f_min, f_max = feature_ranges[feature]
+        if f_max <= f_min:
+            raise ValueError(f"Invalid normalization range for feature '{feature}': [{f_min}, {f_max}]")
+
+        normalized[idx] = (normalized[idx] - f_min) / (f_max - f_min)
+
+    if clip:
+        normalized = np.clip(normalized, 0.0, 1.0).astype(dt, copy=False)
+
+    return normalized
+
 def open_file(board: chess.Board, file: int, color: chess.Color) -> tuple[bool, bool, int]:
     open = True
     used = 0
@@ -353,8 +380,8 @@ def evaluate_side(board: chess.Board, color: chess.Color) -> PositionVector:
 
     if vec.shape[0] != len(VECTOR_FORMAT['format']['features']):
         raise ValueError(f"Vector length {vec.shape[0]} does not match expected length {len(VECTOR_FORMAT['format']['features'])}")
-    
-    return vec
+
+    return normalize_vector(vec)
 
 def generate_position_vector(board: chess.Board, color: chess.Color) -> tuple[PositionVector, PositionVector | None]:
     if VECTOR_FORMAT['format']['per_side']:

@@ -36,14 +36,14 @@ class Game(models.Model):
     end_game_start = models.IntegerField(blank=True, null=True)
     moves = models.TextField(blank=False) # space separated list of moves in PGN Notation format
     positions = models.ManyToManyField('analysis.Position', blank=True, related_name='appearances')
-    critical_positions = models.ManyToManyField('analysis.CriticalMoment', blank=True, related_name='critical_appearances')
+    # critical_positions = models.ManyToManyField('analysis.CriticalMoment', blank=True, related_name='critical_appearances')
     color = models.BooleanField(blank=False) # white = 1
     result = models.FloatField(blank=False, default=0.5) # 1.0 for win, 0.5 for draw, 0.0 for loss
     date = models.DateTimeField(auto_now_add=False, blank=False)
     time_control = models.CharField(max_length=50, blank=True, null=True)
     import_date = models.DateTimeField(auto_now_add=True)
     analysed = models.BooleanField(default=False, blank=False)
-    analysis = models.OneToOneField('analysis.Analysis', on_delete=models.CASCADE, blank=True, null=True, related_name='game')
+    analysis = models.OneToOneField('analysis.AnalysisResult', on_delete=models.CASCADE, blank=True, null=True, related_name='game')
 
     def moves_to_Positions(self):
         pass

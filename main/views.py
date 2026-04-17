@@ -3,7 +3,6 @@ from rest_framework.permissions import IsAuthenticated
 from .models import User, Game
 from .utils import parse_pgn
 
-
 # Create your views here.
 class UploadPGN(APIView):
     permission_classes = [IsAuthenticated]

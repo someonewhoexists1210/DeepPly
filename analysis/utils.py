@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from scipy.special import softmax
 import numpy as np
 import numpy.typing as npt
-from .  tacticals import tactical_detection
+from .tacticals import tactical_detection
 from pydantic import TypeAdapter
 
 MUSCLE_IP = os.getenv('MUSCLE_IP')
@@ -20,6 +20,17 @@ VECTOR_LENGTH = len(VECTOR_FORMAT['format']['features'])
 WEIGHTS = np.ones(VECTOR_LENGTH)
 PLAN_TEMP = 1.0
 
+def zip_position_vector(position_vector: PositionVector | list[str], format: list[str] = VECTOR_FEATURES) -> dict[str, dt]:
+    return dict(zip(format, position_vector))
+
+def diff_vector_to_semantic(vector: DiffVector) -> list[str]:
+    semantic = []
+    for value in vector:
+        if value < -0.1:
+            semantic.append('user position has more')
+        elif value > 0.1:
+            semantic.append('engine position has more')
+    return semantic
 
 def detect_repetition(game: list[Position]) -> tuple[bool, list[int]]:
     all_positions: dict[str, list[int]] = {}
@@ -43,7 +54,7 @@ def detect_50move_rule(game: list[Position]) -> tuple[bool, int]:
             return (True, pos.index)
     return (False, -1)
 
-def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen': str, 'eval': {'pv': 'e2e4 e7e5', 'score': 20}}]
+def fetch_evals(positions: list[Position], retry_counter=0) -> list[Position]: # returns [{'fen': str, 'eval': {'pv': 'e2e4 e7e5', 'score': 20}}]
     serialized = TypeAdapter(list[Position]).dump_python(positions)
     response = requests.post(f'http://{MUSCLE_IP}/evaluate', json=serialized)
     if response.status_code != 200:
@@ -57,8 +68,8 @@ def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen'
     start_time = time.time()
     while True and len(remaining) > 0:
         current_time = time.time()
-        if current_time - start_time > 30: # timeout after 30 seconds
-            raise Exception('MUSCLE evaluation timed out after 30 seconds')
+        if current_time - start_time > 120: # timeout after 120 seconds
+            raise Exception('MUSCLE evaluation timed out after 120 seconds')
         
         status_res = requests.get(f'http://{MUSCLE_IP}/result/{job_id}')
         if status_res.status_code != 200:
@@ -74,19 +85,20 @@ def fetch_evals(positions, retry_counter=0) -> list[Position]: # returns [{'fen'
         elif 'pending' in status.lower() or 'processing' in status.lower():
             time.sleep(0.5)
         elif 'complete' in status.lower():
-            results = st_data.get('results', [])
-            evals.extend(TypeAdapter(list[Position]).validate_python(results))
-            if len(results) != remaining:
-                raise Exception(f'MUSCLE returned complete but results count {len(results)} does not match expected {remaining}')
+            results = st_data.get('result', [])
+            evals.extend(TypeAdapter(list[Position]).validate_python([json.loads(r) for r in results]))
+            if len(results) != len(remaining):
+                raise Exception(f'MUSCLE returned complete but results count {len(results)} does not match expected {len(remaining)}')
             break
         else:
             raise Exception(f'Unexpected MUSCLE status: {status}')
         
+
+    print(f"MUSCLE evaluated in {time.time() - start_time:.2f} seconds with {len(evals)} results")
     evals = sorted(evals, key=lambda x: x.index)
     return evals
 
 def analysis_pipeline(positions: list[Position], color=1) -> list[FullPositionResult]: # yields either FullPositionResult for each position or a list of critical moment indices at the start
-    log_data = {}
     for position in positions:
         if len(position.variations) == 0:
             raise Exception('Evaluation data missing for some positions')
@@ -95,8 +107,8 @@ def analysis_pipeline(positions: list[Position], color=1) -> list[FullPositionRe
     criticals = [position.index for position in cms]
     
     results: list[FullPositionResult] = []
-    for i in range(len(positions)-1):
-        if i % 2 != color:
+    for i in range(len(positions) - 1):
+        if i % 2 == color:
             continue
         
         pos_log: dict[str, Any] = {}
@@ -314,9 +326,7 @@ def positional_analysis(position: Position, next_position_eval: Evaluation) -> P
     log_data['E_ref'] = E_ref
     V_gap: DiffVector = WEIGHTS * (V_ref - user_vector)
     log_data['V_gap'] = V_gap
-    
-    E_gap = E_ref - next_position_eval
-    log_data['E_gap'] = E_gap
+    log_data['next_position_eval'] = next_position_eval
 
     is_acceptable_move = cluster_data[0].E - next_position_eval < 20
     log_data['is_acceptable_move'] = is_acceptable_move
@@ -334,7 +344,7 @@ def positional_analysis(position: Position, next_position_eval: Evaluation) -> P
         return res
     
     if is_acceptable_move:
-        result = f'User move is strong, follows cluster {user_plan.idx} with representative vector {user_plan.V} closely with similar evaluation to the representative move, no clear mistakes'
+        result = f'User move is strong, follows engine plans closely with similar evaluation to the representative move, no clear mistakes'
         log_data['strategic_mistake'] = False
         log_data['result'] = result
         res = PositionalPipelineResult.model_validate(log_data)
@@ -348,14 +358,14 @@ def positional_analysis(position: Position, next_position_eval: Evaluation) -> P
             res = PositionalPipelineResult.model_validate(log_data)
             return res
         
-        result = f'User follows main plan of position, but there is a strategic gap shown by vector {V_gap}'
+        result = f'User follows main plan of position, but there is a strategic gap'
         log_data['strategic_mistake'] = True
         log_data['result'] = result
         res = PositionalPipelineResult.model_validate(log_data)
         return res
 
 
-    result = f"User follows a clear plan with confidence {user_plan_confidence:.2f}, but there is a strategic gap shown by vector {V_gap} and evaluation gap of {E_gap} between user move and most similar engine plan move"
+    result = f"User follows a clear plan with confidence {user_plan_confidence:.2f}, but there is a strategic gap"
     log_data['strategic_mistake'] = True
     log_data['result'] = result
 

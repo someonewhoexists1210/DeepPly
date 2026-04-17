@@ -1,12 +1,28 @@
 from django.db import models
 
-# Create your models here.
 class Position(models.Model):
-    user = models.ForeignKey('main.User', on_delete=models.CASCADE, related_name='user_positions')
-    fen = models.CharField(max_length=150, unique=True, primary_key=True)
+    fen = models.CharField(primary_key=True)
+    user = models.ForeignKey('main.User', on_delete=models.CASCADE, related_name='positions')
+    hits = models.IntegerField(default=0)
+    last_hit = models.DateTimeField(auto_now=True)
+    first_hit = models.DateTimeField(auto_now_add=True)
 
-class CriticalMoment(Position):
-    evaluation_delta = models.FloatField(blank=True, null=True)
+class TaskResult(models.Model):
+    task_id = models.CharField(primary_key=True)
+    status = models.CharField(max_length=20)
+    progress = models.FloatField(default=0.0)
+    error_message = models.TextField(blank=True, null=True)
+    retry_count = models.IntegerField(default=0)
+    started = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-class Analysis(models.Model):
-    pass ## ADD FIELDS AS PIPELINE DEVELOPS
+# Create your models here.
+class AnalysisResult(models.Model):
+    id=models.AutoField(primary_key=True)
+    model_input = models.JSONField()
+    tokens_input = models.IntegerField()
+    model_output = models.JSONField()
+    tokens_output = models.IntegerField()
+    llm_latency = models.FloatField()
+    completion_time = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)

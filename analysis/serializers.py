@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import Analysis
+from .models import AnalysisResult
 
-class AnalysisSerializer(serializers.ModelSerializer):
+class AnalysisSerializer(serializers.Serializer):
     class Meta:
-        model = Analysis
-        fields = '__all__'
+        model = AnalysisResult
+        fields = ("model_output",)
