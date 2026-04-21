@@ -8,6 +8,26 @@ if not KEY:
     raise Exception("OPENAI_KEY not set in environment variables")
 
 client = OpenAI(api_key=KEY)
+schema = {
+    "type": "object",
+    "properties": {
+        "explanations_per_position": {
+            "type": "array",
+            "items": {
+            "type": "object",
+            "properties": {
+                "move": {"type": "string"},
+                "explanation": {"type": "string"}
+            },
+            "required": ["move", "explanation"],
+            "additionalProperties": False
+            }
+        }
+    },
+    "required": ["explanations_per_position"],
+    "additionalProperties": False
+}
+
 def filter_analysis_for_explanation(analysis: GameAnalysisResult) -> ExplanationInput:
     filtered = {}
     filtered['player'] = analysis.player
@@ -66,7 +86,9 @@ def filter_analysis_for_explanation(analysis: GameAnalysisResult) -> Explanation
     return obj
 
 def generate_explanations(analysis: ExplanationInput) -> tuple[ExplanationOutput, int, int]:
-    prompt = f""""""
+    prompt = f"""
+    You are a chess coach analysing a student's game. You have access to the report of the moves of the game as well as certain data on both the positional and tactical aspects of each move compared to the engine's evaluation. Go through the moves and provide reasonable explanations as to why the move played by the student is worse than the best engine move, based solely on the data provided. You do not need to explain any more chess concepts than what is given in the data, no thinking, no inference. Only provide explanations based on the data provided, but in your answer do not reference the data values. The explanation crafted should not deviate from the data but should not seem exactly like the the summary of the move provided. The explanation should be understandable to a chess student.  If the move is good, or if there is no data indicating that the move is bad, simply say "Good move, no mistakes detected". Be concise but informative in your explanations. Use the following format for your response, strictly adhering to it and ensuring it is valid JSON according to the schema provided. It is of upmost importance that you keep the explanation for each position to be no more than 200 words AT MAX. The user will provide a JSON schema with all the data you need to reference to generate explanations.
+    """
     try:
         response = client.responses.parse(
             model="gpt-4.1-nano-2025-04-14",
@@ -87,11 +109,13 @@ def generate_explanations(analysis: ExplanationInput) -> tuple[ExplanationOutput
                     "type": "json_schema",
                     "name": "ExplanationOutput",
                     "strict": True,
-                    "schema": ExplanationOutput.model_json_schema()
+                    "schema": schema
                 }
             }
         )
-        result = response.output_parsed
+        print(response)
+        result = response.output_text
+        result = ExplanationOutput.model_validate_json(result)
 
         if response.usage is None:
             raise Exception("No usage information returned from API")

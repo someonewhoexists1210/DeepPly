@@ -45,8 +45,6 @@ class Game(models.Model):
     analysed = models.BooleanField(default=False, blank=False)
     analysis = models.OneToOneField('analysis.AnalysisResult', on_delete=models.CASCADE, blank=True, null=True, related_name='game')
 
-    def moves_to_Positions(self):
-        pass
     
 
 

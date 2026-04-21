@@ -177,5 +177,13 @@ class ExplanationInput(BaseModel):
     color: str
     positions: list[ConditionedFullPositionResult]
 
+class ExplanationPosition(BaseModel):
+    move_number: int
+    explanation: str
+
+    model_config = ConfigDict(extra="forbid")
+
 class ExplanationOutput(BaseModel):
-    explanations_per_position: list[str]
+    explanations_per_position: list[ExplanationPosition]
+
+    model_config = ConfigDict(extra="forbid")

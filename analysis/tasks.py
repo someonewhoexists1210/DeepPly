@@ -23,7 +23,7 @@ def analyse_game(self, game_id):
     task_id = self.request.id
     task = TaskResult.objects.get_or_create(task_id=task_id)[0]
     task.status = "STARTED"
-    self.update_state(meta={'progress': 0.0})
+    self.update_state(state="STARTED", meta={'progress': 0.0})
 
     try:
         t = time.time()
@@ -67,12 +67,12 @@ def analyse_game(self, game_id):
                     pv.evaluation.mate = -pv.evaluation.mate if pv.evaluation.mate is not None else None
                     pv.evaluation.cp = -pv.evaluation.cp if pv.evaluation.cp is not None else None
 
-        self.update_state(meta={'progress': 40.0, 'message': 'Evaluations fetched'})
+        self.update_state(state="STARTED", meta={'progress': 40.0, 'message': 'Evaluations fetched'})
         task.progress = 40.0
         task.save()
 
         analysis: list[FullPositionResult] = analysis_pipeline(positions, game.color)
-        self.update_state(meta={'progress': 60.0, 'message': 'Analysis complete'})
+        self.update_state(state="STARTED", meta={'progress': 60.0, 'message': 'Analysis complete'})
         task.progress = 60.0
         task.save()
 
@@ -96,18 +96,15 @@ def analyse_game(self, game_id):
             PositionModel.objects.filter(fen__in=fen_list, user=game.user).update(hits=F('hits') + 1, last_hit=Now())
             game.positions.add(*PositionModel.objects.filter(fen__in=fen_list, user=game.user))
 
-        
-
         llm_start = time.time()
         explanation_output, input_tok, output_tok = generate_explanations(filtered_analysis)
-        self.update_state(meta={'progress': 100.0, 'message': 'Explanations generated'})
+        self.update_state(state="STARTED", meta={'progress': 100.0, 'message': 'Explanations generated'})
         end = time.time()
 
         task.status = "SUCCESS"
         task.progress = 100.0
         task.save()
         res = AnalysisResult.objects.create(
-            game_id=game,
             model_input=filtered_analysis.model_dump(),
             tokens_input=input_tok,
             model_output=explanation_output.model_dump(),
@@ -115,6 +112,10 @@ def analyse_game(self, game_id):
             llm_latency=end - llm_start,
             completion_time=end - t
         )
+        game.analysed = True
+        game.analysis = res  # pyright: ignore[reportAttributeAccessIssue]
+        game.save()
+        print("Time taken: ", end - t)
         return res.id
 
     except Exception as e:
@@ -123,11 +124,3 @@ def analyse_game(self, game_id):
         task.retry_count += 1
         task.save()
         raise self.retry(countdown=1, exc=e)
-        
-
-    
-
-
-
-
-            

@@ -172,14 +172,14 @@ def tactical_analysis(fen: str, engine_pv: PV) -> TacticalPipelineResult | None:
         )
     return None
 
-def flag_critical(positions: list[Position], color=1, threshold=50, mate_threshold=5) -> list[int]: # returns list of indices of critical moments
+def flag_critical(positions: list[Position], color=1, threshold=50, mate_threshold=5, oneside=True) -> list[int]: # returns list of indices of critical moments
     critical_moments: list[int] = []
     index = 0
     for position in positions:
         if index == len(positions)-1:
             break
 
-        if index % 2 == color:
+        if oneside and index % 2 == color:
             index += 1
             continue
 

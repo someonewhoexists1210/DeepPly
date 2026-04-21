@@ -4,4 +4,4 @@ from .models import AnalysisResult
 class AnalysisSerializer(serializers.Serializer):
     class Meta:
         model = AnalysisResult
-        fields = ("model_output",)
+        fields = ['model_output']
