@@ -1,10 +1,10 @@
 # DeepPly: A new way to analyze and improve!
  Welcome to DeepPly. My name is Darsh Jindal and I'm a pretty avid chess player (~1500 FIDE). A couple of months ago, I was training to improve but I plateaued hard. Thats when I came up with the idea to make a chess improvement tool to get insights not seen anywhere.
 
- ### Live at [https://www.deepply.net](https://www.deepply.net)
+### Live at [https://www.deepply.net](https://www.deepply.net)
  (Note this is still a WIP, so the results arent always accurate and llms hallucinate a lot too)
 
- ## Features
+## Features
  - Upload games or lichess links
  - Link Lichess account to automatically get games
  - Analyze game to see move-by-move insights and a short summary of the whole game
@@ -12,9 +12,9 @@
 
 ## Pages
 ### Dashboard
-![Dashboard page](readmepics\Dashboard.png)
+![Dashboard page](/readmepics/Dashboard.png)
 ### Analysis Page
-![Analysis Page](readmepics\AnalysisPage.png)
+![Analysis Page](/readmepics/AnalysisPage.png)
 
  ## Tech Stack
  ### Django
