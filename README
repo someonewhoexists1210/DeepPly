@@ -1,0 +1,33 @@
+# DeepPly: A new way to analyze and improve!
+ Welcome to DeepPly. My name is Darsh Jindal and I'm a pretty avid chess player (~1500 FIDE). A couple of months ago, I was training to improve but I plateaued hard. Thats when I came up with the idea to make a chess improvement tool to get insights not seen anywhere.
+
+ ### Live at [https://www.deepply.net](https://www.deepply.net)
+
+ ## Features
+ - Upload games or lichess links
+ - Link Lichess account to automatically get games
+ - Analyze game to see move-by-move insights and a short summary of the whole game
+ - Non-LLM analysis (runs through a custom algorithm which is then fed into an LLM only to convert results into natural language, check out the code!)
+
+## Pages
+### Dashboard
+![Dashboard page](readmepics\Dashboard.png)
+### Analysis Page
+![Analysis Page](readmepics\AnalysisPage.png)
+
+ ## Tech Stack
+ ### Django
+ Main webserver, handles backend auth, game fetching etc
+
+ ### Celery + Redis
+ Handles the analysis task
+
+ ### Stockfish + FastAPI
+ This is a separate server which helps me to support my positional algorithm with stockfish to ensure that I'm highlighting the correct moves, and influences the results of the algorithm as well. This is a cluster of optimized stockfish instances at lower depths to increase evaluation speeds. Repo Link: [https://github.com/someonewhoexists1210/StockfishWorker](https://github.com/someonewhoexists1210/StockfishWorker)
+
+ ### Frontend: React + Vite + Tailwindcss
+ I feel like this is the default for webapps now. I have to admit a good chunk of the designing was done by AI (I know im sorry) but tbf im in the middle of exams and was pretty exhausted making the backend, plus im despise frontend work. Though I made many edits of my own to make it feel real. This is hosted on cloudflare pages/workers
+ Repo link: [https://github.com/someonewhoexists1210/DeepPly-Frontend](https://github.com/someonewhoexists1210/DeepPly-Frontend)
+
+## Contact Me!
+Email me at [darshjindal537@gmail.com](mailto:darshjindal537@gmail.com)!
