@@ -9,7 +9,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from scipy.special import softmax
 import numpy as np
 import numpy.typing as npt
-from .tacticals import tactical_detection
 from pydantic import TypeAdapter
 
 MUSCLE_IP = os.getenv('MUSCLE_IP')
@@ -17,8 +16,8 @@ if not MUSCLE_IP:
     raise Exception("MUSCLE_IP not set in environment variables")
 
 VECTOR_LENGTH = len(VECTOR_FORMAT['format']['features'])
-WEIGHTS = np.ones(VECTOR_LENGTH)
-PLAN_TEMP = 1.0
+WEIGHTS = json.load(open('analysis/vector_weights.json'))
+PLAN_TEMP = 0.33
 
 def zip_position_vector(position_vector: PositionVector | list[str], format: list[str] = VECTOR_FEATURES) -> dict[str, dt]:
     return dict(zip(format, position_vector))
@@ -54,7 +53,7 @@ def detect_50move_rule(game: list[Position]) -> tuple[bool, int]:
             return (True, pos.index)
     return (False, -1)
 
-def fetch_evals(positions: list[Position], retry_counter=0) -> list[Position]: # returns [{'fen': str, 'eval': {'pv': 'e2e4 e7e5', 'score': 20}}]
+def fetch_evals(positions: list[Position], progress_update_func=None, retry_counter=0) -> list[Position]: # returns [{'fen': str, 'eval': {'pv': 'e2e4 e7e5', 'score': 20}}]
     serialized = TypeAdapter(list[Position]).dump_python(positions)
     response = requests.post(f'http://{MUSCLE_IP}/evaluate', json=serialized)
     if response.status_code != 200:
@@ -80,9 +79,10 @@ def fetch_evals(positions: list[Position], retry_counter=0) -> list[Position]: #
         if 'failed' in status.lower() or 'expired' in status.lower():
             if retry_counter >= 3:
                 raise Exception(f'MUSCLE evaluation failed with status: {status}. Retried {retry_counter} times.')  
-            evals = fetch_evals(positions, retry_counter+1)
+            evals = fetch_evals(positions, progress_update_func=progress_update_func, retry_counter=retry_counter+1)
             break
         elif 'pending' in status.lower() or 'processing' in status.lower():
+            progress_update_func(40 * round(st_data.get('done', 0) / st_data.get('total', 1), 1), f"") if progress_update_func else None
             time.sleep(0.5)
         elif 'complete' in status.lower():
             results = st_data.get('result', [])
@@ -113,7 +113,10 @@ def analysis_pipeline(positions: list[Position], color=1) -> list[FullPositionRe
         
         pos_log: dict[str, Any] = {}
         pos_log['strategic_analysis'] = positional_analysis(positions[i], positions[i+1].variations[0].evaluation)
-        pos_log['tactical_analysis'] = tactical_analysis(positions[i].fen, positions[i].variations[0])
+        if positions[i].index in criticals:
+            pos_log['tactical_analysis'] = tactical_analysis(positions[i].fen, retry_counter=0)
+        else:
+            pos_log['tactical_analysis'] = None
 
         if positions[i].index in criticals:
             pos_log['critical'] = True
@@ -130,47 +133,31 @@ def analysis_pipeline(positions: list[Position], color=1) -> list[FullPositionRe
 
     return results
 
-def tactical_analysis(fen: str, engine_pv: PV) -> TacticalPipelineResult | None:
+def tactical_analysis(fen: str, retry_counter: int = 0) -> TacticalDetectionResult | None:
     board = chess.Board(fen)
     if not board.is_valid():
         raise Exception('Invalid FEN provided for tactical analysis')
     
-    moves = engine_pv.line.split()
-    positions: list[str] = []
-    tactics: dict[str, list[float]] = {}
-    for move in moves:
-        board.push_uci(move)
-        positions.append(board.fen())
-        tactical_result = tactical_detection(board.fen())
-        for tactic in tactical_result:
-            if tactic.label in tactics:
-                tactics[tactic.label].append(tactic.confidence)
-            else:
-                tactics[tactic.label] = [tactic.confidence]
+    response = requests.post(f'https://chessgrammar.com/api/v1/extract', json={'fen': fen})
+    if not response.ok:
+        if response.status_code == 429:
+            if retry_counter >= 3:
+                raise Exception(f'Tactical detection API rate limit exceeded. Retried {retry_counter} times.')
+            time.sleep(2 ** (retry_counter + 2)) # exponential backoff
+            return tactical_analysis(fen, retry_counter=retry_counter+1)
+        raise Exception(f'Tactical detection API call failed with status code {response.status_code}, response: {response.text}')
 
-    peaked_tactics = {}
-    for tactic, confidences in tactics.items():
-        peak_confidence = max(confidences)
-        peak_confidence_idx = np.argmax(confidences)
-        if peak_confidence > 0.75:
-            peaked_tactics[tactic] = (peak_confidence, positions[peak_confidence_idx])
-
-    max_tactic = None
-    max_confidence = -1
-    for tactic, (confidence, pos) in peaked_tactics.items():
-        if confidence > max_confidence:
-            max_confidence = confidence
-            max_tactic = (tactic, pos, confidence)
-
+    data = response.json()
+    count = data.get('count', 0)
+    tactics_list = data.get('tactics', [])
+    if count == 0: return None
+    if len(tactics_list) != count:
+        raise Exception(f'Tactical detection API returned count {count} but tactics list has length {len(tactics_list)}')
     
-    if max_tactic:
-        return TacticalPipelineResult(
-            tactic=max_tactic[0],
-            position=max_tactic[1],
-            confidence=max_tactic[2],
-            engine_line=engine_pv.line.split()
-        )
-    return None
+    ## FUTURE: log latencies
+    main_tactic = tactics_list[0]
+    tactic_result = TacticalDetectionResult.model_validate(main_tactic)
+    return tactic_result
 
 def flag_critical(positions: list[Position], color=1, threshold=50, mate_threshold=5, oneside=True) -> list[int]: # returns list of indices of critical moments
     critical_moments: list[int] = []
@@ -328,7 +315,7 @@ def positional_analysis(position: Position, next_position_eval: Evaluation) -> P
     log_data['V_gap'] = V_gap
     log_data['next_position_eval'] = next_position_eval
 
-    is_acceptable_move = cluster_data[0].E - next_position_eval < 20
+    is_acceptable_move = cluster_data[0].E - next_position_eval <= 20
     log_data['is_acceptable_move'] = is_acceptable_move
 
     if plan_match == 0:
@@ -372,4 +359,4 @@ def positional_analysis(position: Position, next_position_eval: Evaluation) -> P
 
     res = PositionalPipelineResult.model_validate(log_data)
     return res
-                                
+                              

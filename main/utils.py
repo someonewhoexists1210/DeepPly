@@ -2,22 +2,23 @@ import chess
 import chess.pgn
 import io
 from datetime import datetime
-from dataclasses import dataclass
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, Any
 
-@dataclass
-class GameData:
+class GameData(BaseModel):
     plies: int
     moves: str
+    moves_uci: str
     color: int
     result: float
+    opponent: str = "Unknown"
     date: Optional[datetime] = None
     time_control: Optional[str] = None
 
 def parse_pgn(pgn_text, username=None, color=None):
     pgn_io = io.StringIO(pgn_text)
     num_games = 0
-    game_list: list[GameData] = []
+    game_list: list[dict[str, Any]] = []
     
     while chess.pgn.read_headers(pgn_io):
         num_games += 1
@@ -32,6 +33,16 @@ def parse_pgn(pgn_text, username=None, color=None):
         if not game:
             return {'error': f'Invalid PGN in game {_ + 1}'}
         
+        board = chess.Board()
+        moves = []
+        moves_uci = []
+        for move in game.mainline_moves():
+            moves.append(board.san(move))
+            moves_uci.append(move.uci())
+            board.push(move)
+
+        plies = len(moves)
+        
         if not color:
             headers = game.headers
             if not headers:
@@ -43,9 +54,7 @@ def parse_pgn(pgn_text, username=None, color=None):
                 color = 0
             else:
                 return {'error': f'Username not found in PGN headers for game {_ + 1}. Please provide color.'}
-
-        plies = sum(1 for _ in game.mainline_moves())
-        moves = ' '.join(move.uci() for move in game.mainline_moves())
+        
         if game.headers.get('Result') == '1-0':
             result = 1.0 if color == 1 else 0.0
         elif game.headers.get('Result') == '0-1':
@@ -71,13 +80,15 @@ def parse_pgn(pgn_text, username=None, color=None):
 
         game_data = GameData(
             plies=plies,
-            moves=moves,
+            opponent=game.headers.get('Black', "Unknown") if color == 1 else game.headers.get('White', "Unknown"),
+            moves=' '.join(moves),
+            moves_uci=' '.join(moves_uci),
             color=color,
             result=result,
             date=date,
             time_control=time_control
         )
-        game_list.append(game_data)
+        game_list.append(game_data.model_dump())
 
     return game_list
 

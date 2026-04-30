@@ -16,6 +16,7 @@ class User(AbstractUser):
     profile_picture = models.URLField(blank=True, null=True)
     is_coach = models.BooleanField(blank=False, default=False)
     paid_user = models.BooleanField(default=False, blank=False)
+    chesscom_username = models.CharField(max_length=200, blank=True, null=True)
     
     class Meta:
         constraints = [
@@ -31,10 +32,12 @@ class Game(models.Model):
     chesscom_id = models.CharField(max_length=50, blank=True, null=True)
     task_id = models.CharField(max_length=255, blank=True, null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_games')
+    opponent = models.CharField(max_length=150, blank=False)
     plies = models.IntegerField(blank=False)
     middle_game_start = models.IntegerField(blank=True, null=True)
     end_game_start = models.IntegerField(blank=True, null=True)
-    moves = models.TextField(blank=False) # space separated list of moves in PGN Notation format
+    moves = models.TextField(blank=False) # space separated list of moves in san
+    moves_uci = models.TextField(blank=False) # space separated list of moves in uci
     positions = models.ManyToManyField('analysis.Position', blank=True, related_name='appearances')
     # critical_positions = models.ManyToManyField('analysis.CriticalMoment', blank=True, related_name='critical_appearances')
     color = models.BooleanField(blank=False) # white = 1
@@ -43,7 +46,7 @@ class Game(models.Model):
     time_control = models.CharField(max_length=50, blank=True, null=True)
     import_date = models.DateTimeField(auto_now_add=True)
     analysed = models.BooleanField(default=False, blank=False)
-    analysis = models.OneToOneField('analysis.AnalysisResult', on_delete=models.CASCADE, blank=True, null=True, related_name='game')
+    # pgn = models.TextField(blank=True)
 
     
 

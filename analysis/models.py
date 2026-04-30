@@ -19,6 +19,7 @@ class TaskResult(models.Model):
 # Create your models here.
 class AnalysisResult(models.Model):
     id=models.AutoField(primary_key=True)
+    game = models.OneToOneField('main.Game', on_delete=models.CASCADE, related_name='analysis', blank=True)
     model_input = models.JSONField()
     tokens_input = models.IntegerField()
     model_output = models.JSONField()

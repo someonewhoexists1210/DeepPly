@@ -66,12 +66,20 @@ def get_profile(access_token):
 def parse_game_json(game_data: dict):
     pgn_io = io.StringIO(game_data['pgn'])
     game = chess.pgn.read_game(pgn_io)
+    board = chess.Board()
     if not game:
         return None
-    moves = " ".join(move.uci() for move in game.mainline_moves())
-    game_data['moves'] = moves
-    return game_data
+    
+    moves = []
+    moves_uci = []
+    for move in game.mainline_moves():
+        moves.append(board.san(move))
+        moves_uci.append(move.uci())
+        board.push(move)
 
+    game_data['moves'] = moves
+    game_data['moves_uci'] = moves_uci
+    return game_data
 
 def import_all_games(token: LichessToken):
     headers = {

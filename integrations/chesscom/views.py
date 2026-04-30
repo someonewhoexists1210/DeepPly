@@ -16,15 +16,14 @@ GameResultMap = {
 class ChessComImport(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        username = request.query_params.get('username')
-        months = int(request.query_params.get('months', 1))
+    def post(self, request):
+        username = request.data.get('username')
+        months = int(request.data.get('months', 1))
         if not username:
             return Response({"error": "Username is required"}, status=400)
 
         try:
             games = import_games(username, months)
-            print('import success')
             if games.get('error'):
                 return Response(games['error'], status=games['status_code'])
             
@@ -36,16 +35,23 @@ class ChessComImport(APIView):
                         res = result
                         break
 
+                if '/' in game['time_control']:
+                    game['time_control'] = 'Daily'
+
                 Game.objects.create(
                     chesscom_id=game['url'].split('/')[-1],
                     user=request.user,
+                    opponent=game['black']['username'] if player_color == 'white' else game['white']['username'],
                     plies=game['plies'],
                     color=game['white']['username'] == username,
-                    moves=game['moves'],
+                    moves=' '.join(game['moves']),
+                    moves_uci=' '.join(game['moves_uci']),
                     result=res,
                     date=s_epoch_to_datetime(game['end_time']),
                     time_control=game['time_control']
                 )
+            request.user.chesscom_username = username
+            request.user.save()
             return Response({'message': f"Chess.com import successful for {username} for {months} month(s)"}, status=200)
         except Exception as e:
             return Response({"error": "Error occured: " + str(e)}, status=500)

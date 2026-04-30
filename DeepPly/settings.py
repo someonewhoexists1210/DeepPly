@@ -23,6 +23,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 GAME_RESULT_DIR = BASE_DIR / 'game_results'
 GAME_RESULT_DIR.mkdir(exist_ok=True)
 
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -35,7 +37,8 @@ DEBUG = True
 
 
 HOSTED_URL = "http://127.0.0.1:8000"
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+CORS_ALLOW_ALL_ORIGINS = True
 
 AUTH_USER_MODEL = 'main.User'
 AUTHENTICATION_BACKENDS = ['main.backends.UorEmailBackend']
@@ -49,6 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'main',
@@ -58,6 +62,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -86,6 +91,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_RESULT_EXPIRES = 60 * 60
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 
 TEMPLATES = [
     {
@@ -140,7 +146,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 

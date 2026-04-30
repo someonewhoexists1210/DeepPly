@@ -44,7 +44,6 @@ SerializableDiffVector = Annotated[
     PlainSerializer(lambda x: x.tolist(), return_type=list)
 ]
 
-
 class Evaluation(BaseModel):
     score: int
     mate: Optional[int] = None
@@ -70,6 +69,12 @@ class Position(BaseModel):
     index: int
     move: str
     piece_moved: Optional[str] = None
+    engine_move: Optional[str] = None
+    engine_piece_moved: Optional[str] = None
+    capture: bool = False
+    captured_piece: Optional[str] = None
+    engine_capture: bool = False
+    engine_captured_piece: Optional[str] = None
     variations: list[PV] = Field(default_factory=list)
     notes: dict[str, Any] = Field(default_factory=dict)
     
@@ -80,15 +85,18 @@ class Cluster(BaseModel):
     E: Evaluation
     idx: int
 
-class TacticalDetectionResult(BaseModel):
-    label: str
-    confidence: float
+class Target(BaseModel):
+    square: str
+    piece: str
+    piece_color: str
 
-class TacticalPipelineResult(BaseModel):
-    tactic: str
-    position: str
-    confidence: float
-    engine_line: list[str]
+class TacticalDetectionResult(BaseModel):
+    pattern: str
+    color: str
+    key_squares: list[str]
+    targets: list[Target]
+    move: str
+
 
 class PositionalPipelineResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -123,6 +131,8 @@ class GameAnalysisResult(BaseModel):
     game_id: int
     player: str
     color: bool
+    result: str
+    time_control: Optional[str] = None
     fifty_move_rule: Optional[int] = None
     repetition: Optional[list[int]] = None
     positions: list[Position] = Field(default_factory=list)
@@ -148,9 +158,15 @@ class ConditionedPositionalPipelineResult(BaseModel):
 
 class ConditionedPosition(BaseModel):
     fen: str
-    move_number: int
+    ply_number: int
     move: str
     piece_moved: Optional[str] = None
+    capture: bool = False
+    captured_piece: Optional[str] = None
+    engine_move: Optional[str] = None
+    engine_piece_moved: Optional[str] = None
+    engine_capture: bool = False
+    engine_captured_piece: Optional[str] = None
     repetition: bool = False
     fifty_move_rule: bool = False
 
@@ -166,24 +182,28 @@ def assert_no_overlap(*models: type[BaseModel]):
     assert not overlap, f"Overlapping fields found: {overlap}"
 
 
-assert_no_overlap(ConditionedPosition, ConditionedPositionalPipelineResult, TacticalPipelineResult)
+assert_no_overlap(ConditionedPosition, ConditionedPositionalPipelineResult)
 class ConditionedFullPositionResult(ConditionedPosition, ConditionedPositionalPipelineResult):
     critical: bool = False
+    tactics_present: Optional[TacticalDetectionResult] = None
     overall_mistake: bool = False
     mistake_type: Optional[str] = None
 
 class ExplanationInput(BaseModel):
     player: str
     color: str
+    result: str
+    time_control: Optional[str] = None
     positions: list[ConditionedFullPositionResult]
 
 class ExplanationPosition(BaseModel):
-    move_number: int
+    ply_number: int
     explanation: str
 
     model_config = ConfigDict(extra="forbid")
 
 class ExplanationOutput(BaseModel):
     explanations_per_position: list[ExplanationPosition]
+    summary: str
 
     model_config = ConfigDict(extra="forbid")
