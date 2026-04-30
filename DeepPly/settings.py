@@ -136,10 +136,13 @@ DATABASES = {
 LOGGING = {
     "version": 1,
     "handlers": {
-        "console": {"class": "logging.StreamHandler"},
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "/home/darsh/deepply/django.log",
+        },
     },
     "root": {
-        "handlers": ["console"],
+        "handlers": ["file"],
         "level": "INFO",
     },
 }
