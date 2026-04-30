@@ -36,8 +36,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = False
 
 
-HOSTED_URL = "http://127.0.0.1:8000"
-ALLOWED_HOSTS = ['api.deepply.net', ]
+HOSTED_URL = "https://api.deepply.net"
+ALLOWED_HOSTS = ['api.deepply.net', 'localhost']
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
@@ -81,7 +81,10 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
-    )
+    ),
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ]
 }
 
 ROOT_URLCONF = 'DeepPly.urls'
