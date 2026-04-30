@@ -13,8 +13,9 @@ from main.models import User
 from .utils import generate_oauth_url, get_access_token, get_profile, import_all_games, import_one_game, ms_epoch_to_datetime
 import secrets
 import regex as re
+import redis
 
-states = {} # USE REDIS IN FUTURE WHEN USING MULTIPLE WORKERS
+r = redis.Redis(host=settings.REDIS_URL, decode_responses=True)
 FRONTEND_URL = settings.FRONTEND_URL
 # Create your views here.
 
@@ -23,13 +24,13 @@ class LichessSetSession(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         state = secrets.token_urlsafe(32)
-        states[state] = request.user.id
+        r.set(state, request.user.id, ex=300) # 5 mins
         return Response({'state': state}, status=200)
 
 class LichessLogin(APIView):
     def get(self, request): 
         state = request.query_params.get('state')
-        if not state or state not in states:
+        if not state or r.get(state) is None:
             return Response({'error': 'Invalid state parameter'}, status=400)
         data = generate_oauth_url('https://lichess.org/oauth?', state, request.build_absolute_uri(reverse('lichess:callback')))
         code_verifier, rd_url = data
@@ -62,7 +63,7 @@ class LichessCallback(APIView):
             access_token = tokens.get('access_token')
             expires_in = tokens.get('expires_in')
             expire_date = timezone.now() + timedelta(seconds=expires_in - 60)
-            user = states.get(state)
+            user = r.get(state)
             if not user:
                 print('No user in session')
                 return redirect(FRONTEND_URL + '/dashboard?message=lichessoauthfail')
@@ -117,7 +118,7 @@ class LichessCallback(APIView):
                 print(e)
                 return redirect(FRONTEND_URL + '/dashboard?message=importfail')
 
-            states.pop(state, None)
+            r.delete(state)
             return redirect(FRONTEND_URL + '/dashboard?message=importsuccess')
         
 class OAuthCancel(APIView):
