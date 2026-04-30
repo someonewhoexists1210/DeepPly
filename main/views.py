@@ -50,12 +50,6 @@ class Register(APIView):
         user_data = ProfileSerializer(user).data
         return Response({"refresh": str(refresh), "access": str(refresh.access_token), "user": user_data}, status=201)
 
-class CheckAuth(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        return Response({"message": "Authenticated", "user": request.user.username}, status=200)
-    
 class LoginView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -82,3 +76,7 @@ class GameDetailView(RetrieveDestroyAPIView):
 
     def get_queryset(self):
         return super().get_queryset().filter(user=self.request.user)
+
+class Health(APIView):
+    def get(self, request):
+        return Response({"status": "ok"}, status=200)
