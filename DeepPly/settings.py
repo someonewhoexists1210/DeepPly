@@ -65,10 +65,10 @@ INSTALLED_APPS = [
     'analysis',
     'integrations.lichess',
     'integrations.chesscom',
-    'middleware.logging.RequestLoggingMiddleware'
 ]
 
 MIDDLEWARE = [
+    'middleware.logging.RequestLoggingMiddleware'
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
