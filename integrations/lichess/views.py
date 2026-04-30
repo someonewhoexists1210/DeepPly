@@ -1,4 +1,5 @@
 from datetime import  timedelta
+import os
 from django.utils import timezone
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -15,7 +16,11 @@ import secrets
 import regex as re
 import redis
 
-r = redis.Redis(host=settings.REDIS_URL, decode_responses=True)
+
+r_url = os.getenv('REDIS_URL')
+if not r_url:
+    raise Exception("REDIS_URL not set in environment variables")
+r = redis.from_url(r_url, decode_responses=True)
 FRONTEND_URL = settings.FRONTEND_URL
 # Create your views here.
 

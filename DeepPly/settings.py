@@ -34,7 +34,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
-
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
 
 HOSTED_URL = "https://api.deepply.net"
 ALLOWED_HOSTS = ['api.deepply.net', 'localhost']
@@ -64,6 +65,7 @@ INSTALLED_APPS = [
     'analysis',
     'integrations.lichess',
     'integrations.chesscom',
+    'middleware.logging.RequestLoggingMiddleware'
 ]
 
 MIDDLEWARE = [
@@ -135,15 +137,42 @@ DATABASES = {
 
 LOGGING = {
     "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+        },
+    },
+
     "handlers": {
         "file": {
             "class": "logging.FileHandler",
-            "filename": "/home/darsh/deepply/django.log",
+            "filename": f"{LOG_DIR}/django.log",
+            "formatter": "verbose",
+        },
+        "error_file": {
+            "class": "logging.FileHandler",
+            "filename": f"{LOG_DIR}/errors.log",
+            "formatter": "verbose",
         },
     },
-    "root": {
-        "handlers": ["file"],
-        "level": "INFO",
+
+    "loggers": {
+        "django": {
+            "handlers": ["file"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["error_file"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "": {  # root logger
+            "handlers": ["file"],
+            "level": "INFO",
+        },
     },
 }
 
@@ -187,7 +216,8 @@ SECURE_SSL_REDIRECT = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = "/home/darsh/deepply/staticfiles/"
 
 VECTOR_VERSION = 'v1.0'
 CLASS_MAPPING = {
