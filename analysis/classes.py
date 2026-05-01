@@ -88,14 +88,14 @@ class Cluster(BaseModel):
 class Target(BaseModel):
     square: str
     piece: str
-    piece_color: str
+    color: str
 
 class TacticalDetectionResult(BaseModel):
     pattern: str
     color: str
     key_squares: list[str]
     targets: list[Target]
-    move: str
+    trigger_move: str
 
 
 class PositionalPipelineResult(BaseModel):
