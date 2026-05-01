@@ -20,7 +20,13 @@ def parse_pgn(pgn_text, username=None, color=None):
     num_games = 0
     game_list: list[dict[str, Any]] = []
     
-    while chess.pgn.read_game(pgn_io):
+
+    games = []
+    while True:
+        game = chess.pgn.read_game(pgn_io)
+        if game is None:
+            break
+        games.append(game)
         num_games += 1
 
     if num_games == 0:
@@ -28,11 +34,7 @@ def parse_pgn(pgn_text, username=None, color=None):
             return {'error': 'Need valid headers for analysis'}
         return {'error': 'No valid games found in PGN.'}
 
-    for _ in range(num_games):
-        game = chess.pgn.read_game(pgn_io)
-        if not game:
-            return {'error': f'Invalid PGN in game {_ + 1}'}
-        
+    for _, game in enumerate(games):
         board = chess.Board()
         moves = []
         moves_uci = []
