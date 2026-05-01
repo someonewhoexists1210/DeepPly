@@ -3,9 +3,15 @@ from .models import User, Game
 from integrations.lichess.models import LichessToken
 
 # Register your models here.
-admin.site.register(Game)
+@admin.register(User)
 class UserAdmin(admin.ModelAdmin):
     readonly_fields = ('password', 'last_login', 'date_joined')  # replace with your field names
 
-admin.site.register(User, UserAdmin)
+@admin.register(Game)
+class GameAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'date', 'result', 'analysed')
+    search_fields = ('user__username',)
+    list_filter = ('result', 'analysed', 'user__username')
+    ordering = ('-date',)
+
 admin.site.register(LichessToken)

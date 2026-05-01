@@ -19,7 +19,6 @@ def parse_pgn(pgn_text, username=None, color=None):
     pgn_io = io.StringIO(pgn_text)
     num_games = 0
     game_list: list[dict[str, Any]] = []
-    
 
     games = []
     while True:
@@ -45,7 +44,7 @@ def parse_pgn(pgn_text, username=None, color=None):
 
         plies = len(moves)
         
-        if not color:
+        if color is None:
             headers = game.headers
             if not headers:
                 color = 1
@@ -72,6 +71,9 @@ def parse_pgn(pgn_text, username=None, color=None):
                 date = datetime.strptime(date_str, '%Y.%m.%d')
             except ValueError:
                 date = None
+        
+        if date is None:
+            date = datetime.now()
 
         timecontrolheader = game.headers.get('TimeControl')
         if timecontrolheader and timecontrolheader != '?':

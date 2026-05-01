@@ -67,8 +67,8 @@ def fetch_evals(positions: list[Position], progress_update_func=None, retry_coun
     start_time = time.time()
     while True and len(remaining) > 0:
         current_time = time.time()
-        if current_time - start_time > 120: # timeout after 120 seconds
-            raise Exception('MUSCLE evaluation timed out after 120 seconds')
+        if current_time - start_time > 180: # timeout after 180 seconds
+            raise Exception('MUSCLE evaluation timed out after 180 seconds')
         
         status_res = requests.get(f'http://{MUSCLE_IP}/result/{job_id}')
         if status_res.status_code != 200:

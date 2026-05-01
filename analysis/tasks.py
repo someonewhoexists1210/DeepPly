@@ -30,9 +30,7 @@ def analyse_game(self, game_id):
     try:
         t = time.time()
         print(f"Starting analysis for game_id: {game_id}")
-        game = Game.objects.filter(id=game_id).first()
-        if not game:
-            raise Exception(f'Game with id {game_id} not found')
+        game = Game.objects.get(id=game_id)
 
         log_file: Path = settings.GAME_RESULT_DIR / f'full/game_{game_id}_log.json'
         log_file2: Path = settings.GAME_RESULT_DIR / f'filtered/game_{game_id}_filtered_log.json'
@@ -134,10 +132,21 @@ def analyse_game(self, game_id):
         print("Time taken: ", end - t)
         return res.id
 
+    except Game.DoesNotExist as e:
+        task.status = "FAILURE"
+        task.error_message = str(e)
+        task.retry_count += 1
+        task.save(update_fields=["status", "error_message", "retry_count", "updated_at"])
+        raise
     except Exception as e:
+        task.retry_count += 1
         if task.retry_count >= 3:
             task.status = "FAILURE"
             task.error_message = str(e)
-            task.retry_count += 1
-            task.save()
+            task.save(update_fields=["status", "error_message", "retry_count", "updated_at"])
+            raise
+
+        task.status = "RETRY"
+        task.error_message = str(e)
+        task.save(update_fields=["status", "error_message", "retry_count", "updated_at"])
         raise self.retry(countdown=1, exc=e)
