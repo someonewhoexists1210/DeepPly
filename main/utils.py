@@ -20,7 +20,7 @@ def parse_pgn(pgn_text, username=None, color=None):
     num_games = 0
     game_list: list[dict[str, Any]] = []
     
-    while chess.pgn.read_headers(pgn_io):
+    while chess.pgn.read_game(pgn_io):
         num_games += 1
 
     if num_games == 0:
