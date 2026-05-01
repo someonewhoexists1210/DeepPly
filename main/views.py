@@ -13,12 +13,11 @@ class UploadPGN(APIView):
     
     def post(self, request):
         user = request.user
-        pgn_file = request.FILES.get('pgn_file')
+        pgn_text = request.data.get('pgn')
         color = request.data.get('color')
-        if not pgn_file:
-            return Response({"error": "No PGN file uploaded."}, status=400)
+        if not pgn_text:
+            return Response({"error": "No PGN text provided."}, status=400)
         
-        pgn_text = pgn_file.read().decode('utf-8')
         data = parse_pgn(pgn_text, username=user.username, color=color)
         if isinstance(data, dict) or 'error' in data:
             return Response(data, status=400)
