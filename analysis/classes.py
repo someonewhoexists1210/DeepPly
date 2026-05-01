@@ -121,7 +121,7 @@ class PositionalPipelineResult(BaseModel):
     result: str
 
 class FullPositionResult(BaseModel):
-    strategic_analysis: PositionalPipelineResult
+    strategic_analysis: Optional[PositionalPipelineResult] = None
     tactical_analysis: Optional[TacticalDetectionResult] = None
     critical: bool = False
     overall_mistake: bool = False

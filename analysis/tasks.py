@@ -67,7 +67,8 @@ def analyse_game(self, game_id):
 
         for position in positions:
             temp_b.set_fen(position.fen)
-            position.engine_move = position.variations[0].line.split()[0] if position.variations else None
+            position.variations = [v for v in position.variations if v.line.strip() != '']
+            position.engine_move = position.variations[0].line.split()[0]
             position.engine_piece_moved = chess.piece_name(temp_b.piece_at(chess.parse_square(position.engine_move[:2])).piece_type) if position.engine_move else None # type:ignore
             position.engine_capture = temp_b.is_capture(chess.Move.from_uci(position.engine_move)) if position.engine_move else False
             position.engine_captured_piece = chess.piece_name(temp_b.piece_at(chess.parse_square(position.engine_move[2:4])).piece_type) if position.engine_capture else None# type:ignore
