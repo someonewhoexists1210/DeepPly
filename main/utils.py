@@ -46,9 +46,8 @@ def parse_pgn(pgn_text, username=None, color=None):
         if not color:
             headers = game.headers
             if not headers:
-                return {'error': f'Need to provide color if PGN headers are missing in game {_ + 1}'}
-            
-            if headers.get('White') == username:
+                color = 1
+            elif headers.get('White') == username:
                 color = 1
             elif headers.get('Black') == username:
                 color = 0
