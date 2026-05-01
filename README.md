@@ -3,6 +3,7 @@
 
 ### Live at [https://www.deepply.net](https://www.deepply.net)
  (Note this is still a WIP, so the results arent always accurate and llms hallucinate a lot too)
+#### FOR TESTING USE CREDENTIALS: Username; test, Password: abcabc
 
 ## Features
  - Upload games or lichess links
