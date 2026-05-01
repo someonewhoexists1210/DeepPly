@@ -142,7 +142,8 @@ def tactical_analysis(fen: str, retry_counter: int = 0) -> TacticalDetectionResu
     if not response.ok:
         if response.status_code == 429:
             if retry_counter >= 3:
-                raise Exception(f'Tactical detection API rate limit exceeded. Retried {retry_counter} times.')
+                print(f'Tactical detection API rate limit exceeded. Retried {retry_counter} times.')
+                return None
             time.sleep(2 ** (retry_counter + 2)) # exponential backoff
             return tactical_analysis(fen, retry_counter=retry_counter+1)
         raise Exception(f'Tactical detection API call failed with status code {response.status_code}, response: {response.text}')
