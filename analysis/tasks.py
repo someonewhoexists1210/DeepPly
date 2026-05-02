@@ -61,13 +61,14 @@ def analyse_game(self, game_id):
                 positions[idx].notes['repetition'] = True
 
         positions = fetch_evals(positions, progress_update_func=lambda progress, message: self.update_state(state="STARTED", meta={'progress': progress, 'message': message})) # returns [{'fen': str, 'index': int,'eval': [{'pv': 'e2e4 e7e5', 'score': 20, 'mate': int, 'cp': int}, ...], ...}, ...]
-        log_data['positions'] = positions  # pyright: ignore[reportArgumentType]
         temp_b = chess.Board()
-        positions = [p for p in positions if len(p.variations[0].line.split()) > 0]
+        for pos in positions:
+            pos.variations = [v for v in pos.variations if len(v.line.strip()) > 0]
+        positions = [p for p in positions if len(p.variations) > 0]
+        log_data['positions'] = positions
 
         for position in positions:
             temp_b.set_fen(position.fen)
-            position.variations = [v for v in position.variations if v.line.strip() != '']
             position.engine_move = position.variations[0].line.split()[0]
             position.engine_piece_moved = chess.piece_name(temp_b.piece_at(chess.parse_square(position.engine_move[:2])).piece_type) if position.engine_move else None # type:ignore
             position.engine_capture = temp_b.is_capture(chess.Move.from_uci(position.engine_move)) if position.engine_move else False
