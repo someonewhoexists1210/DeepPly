@@ -10,7 +10,7 @@ class UserAdmin(admin.ModelAdmin):
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'date', 'result', 'analysed')
-    search_fields = ('user__username',)
+    search_fields = ('user__username', 'task_id')
     list_filter = ('result', 'analysed', 'user__username')
     ordering = ('-date',)
 
